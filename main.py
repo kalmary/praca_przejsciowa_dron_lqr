@@ -14,6 +14,10 @@ az_turbulence = 0.
 ax_wind = 0.
 az_wind = 0.
 
+# n = 6  # dimension of x
+n = 8  # width engines
+m = 2  # dimension of u
+
 rad2deg = 180 / np.pi
 deg2rad = np.pi / 180
 
@@ -21,7 +25,7 @@ deg2rad = np.pi / 180
 #
 # --------------------------------------------------------------
 #
-def declare_matrix(n, m):
+def declare_matrix(n, m):  # dziala
     #
     return array([[0.0 for j in range(0, m)] for i in range(0, n)])
 
@@ -29,7 +33,7 @@ def declare_matrix(n, m):
 #
 # --------------------------------------------------------------
 #
-def declare_vector(n):
+def declare_vector(n):  # dziala
     #
     return array([0.0 for i in range(0, n)])
 
@@ -37,11 +41,10 @@ def declare_vector(n):
 #
 # --------------------------------------------------------------
 #
-def Jacob_AB(RHS, y, t, u_control, n, m):
-    #
+def Jacob_AB(RHS, y, t, u_control, n, m):  # raczej dziala
     A = declare_matrix(n, n)
     B = declare_matrix(n, m)
-    dy = 1.0e-6;
+    dy = 1.0e-6
     f0 = RHS(y, t, u_control)
     for i in range(0, n):
         yp = array(y)
@@ -62,10 +65,9 @@ def Jacob_AB(RHS, y, t, u_control, n, m):
 #
 # --------------------------------------------------------------
 #
-def RHS(x, t, u_control):  ########BLAD
+def RHS(x, t, u_control):
     n = len(x)
-    print(ax_wind)
-    x_prim = np.zeros((n, 1))
+    dx_dt = np.zeros((n, 1))
 
     g = 9.81
     S = 1.
@@ -83,19 +85,22 @@ def RHS(x, t, u_control):  ########BLAD
     CD = CD_0
 
     rho_0 = 1.225
-
-    #exit()
-    Q_dyn = 0.5 * rho_0 * V * V
+    rho = rho_0 * math.pow((1.0 - math.fabs(x[4]) / 44300.0), 4.256)
+    # exit()
+    Q_dyn = 0.5 * rho * V * V
     L = 0.
     D = Q_dyn * S * CD
     G = mass * g
     Th = 1.
     # Thrust_1 = Th * u[0]
     # Thrust_2 = Th * u[1]
+
     Thrust_1 = 0.5 * G + u_control[0]
     Thrust_2 = 0.5 * G + u_control[1]
+
     # Thrust_1 = 0.5 * G + x[6]
     # Thrust_2 = 0.5 * G + x[7]
+
     if n == 8:
         Thrust_1 = x[6]
         Thrust_2 = x[7]
@@ -103,23 +108,25 @@ def RHS(x, t, u_control):  ########BLAD
 
     Tau = 0.05
 
-    beta = 0.0 * deg2rad
+    beta = 0. * deg2rad
     cb = np.cos(beta)
     sb = np.sin(beta)
-    x_prim[0] = (-D * np.cos(alpha) + L * np.sin(alpha) - G * np.sin(x[5]) - Thrust_1 * sb + Thrust_2 * sb) / mass - x[
-        2] * vz
-    x_prim[1] = (-D * np.sin(alpha) - L * np.cos(alpha) + G * np.cos(x[5]) - Thrust_1 * cb - Thrust_2 * cb) / mass + x[
-        2] * vx + az_turbulence
-    x_prim[2] = (0.5 * (Thrust_2 * cb - Thrust_1 * cb) + cm_q * x[2]) / Iy
-    x_prim[3] = np.cos(x[5]) * vx + np.sin(x[5]) * vz
-    x_prim[4] = -np.sin(x[5]) * vx + np.cos(x[5]) * vz
-    x_prim[5] = x[2]
+    dx_dt[0] = (-D * math.cos(alpha) + L * math.sin(alpha) - G * math.sin(
+        x[5]) - Thrust_1 * sb + Thrust_2 * sb) / mass - x[
+                   2] * vz
+    dx_dt[1] = (-D * math.sin(alpha) - L * math.cos(alpha) + G * math.cos(
+        x[5]) - Thrust_1 * cb - Thrust_2 * cb) / mass + x[
+                   2] * vx + az_turbulence
+    dx_dt[2] = (0.5 * (Thrust_2 * cb - Thrust_1 * cb) + cm_q * x[2]) / Iy
+    dx_dt[3] = np.cos(x[5]) * vx + np.sin(x[5]) * vz
+    dx_dt[4] = -np.sin(x[5]) * vx + np.cos(x[5]) * vz
+    dx_dt[5] = x[2]
 
     if n == 8:
-        x_prim[6] = (1.0 / Tau) * (-x[6] + Th * u_control[0])
-        x_prim[7] = (1.0 / Tau) * (-x[7] + Th * u_control[1])
-
-    return x_prim
+        dx_dt[6] = (1.0 / Tau) * (-x[6] + Th * u_control[0])
+        dx_dt[7] = (1.0 / Tau) * (-x[7] + Th * u_control[1])
+    print(dx_dt, 1)
+    return dx_dt
 
 
 #
@@ -182,14 +189,19 @@ def getQR(n, m):
     return Q, R
 
 
+def keep_my_size(vector):
+    vector2 = declare_vector(len(vector))
+
+    for i in range(0, len(vector2)):  # troche skomplikowane ale tylko tak upewniam sie, ze to macierz 1D
+        vector2[i] = vector[i]
+
+    return vector2
+
+
 #
 # --------------------------------------------------------------
 #
 def main():
-    # n = 6  # dimension of x
-    n = 8  # width engines
-    m = 2  # dimension of u
-
     z0 = 2.
     h_flight = 1.  # over the terrain
     c_turb = 1000.
@@ -197,7 +209,8 @@ def main():
     X_turb_2 = 2000.
 
     x = declare_vector(n)
-    x[3] = -z0
+    x[4] = -z0
+
     u_control = declare_vector(m)
 
     Vel = 0.1  # /3.6 to kmph
@@ -205,15 +218,15 @@ def main():
     t = 0.0
     t_end = 100.0
     dt = 0.01
-
     t_pom = int((t_end + dt) / dt)
+
     tp = []
     yp = np.zeros((len(x), t_pom))
     up = np.zeros((len(u_control), t_pom))
     gp = []
     zp = []
 
-    #with np.printoptions(threshold=np.inf):
+    # with np.printoptions(threshold=np.inf):
     #    print(yp)
     i = 0
     while t < t_end + dt:
@@ -227,15 +240,16 @@ def main():
         z_ref = z_terr + h_flight
 
         tp.append(t)
-        yp[:, i]=np.transpose(x)
-        up[:, i]=np.transpose(u_control)
+        yp[:, i] = np.transpose(x)
+        up[:, i] = np.transpose(u_control)
+
         gp.append(z_terr)
         zp.append(z_ref)
 
         x_ref = X
 
         Q, R = getQR(n, m)
-
+        print(x)
         # get e
         e = np.zeros((n, 1))
         e[0] = x[0] - (np.cos(x[5]) * Vx + np.sin(x[5]) * Vz)
@@ -247,26 +261,29 @@ def main():
         e[5] = x[5] - 0.
 
         A, B = Jacob_AB(RHS, x, t, u_control, n, m)
+        K_gain, _, _ = lqr2(A, B, Q, R)
+        print(x)
 
-        K_gain = lqr2(A, B, Q, R)[0]
 
-        u_control = -K_gain * e
-
+        u_control = -K_gain @ e
+        u_control = keep_my_size(u_control)
+        print(x)
         u_max = 10000.
         u_control[0] = np.maximum(-u_max, np.minimum(u_max, u_control[0]))
         u_control[1] = np.maximum(-u_max, np.minimum(u_max, u_control[1]))
 
-        az_turbulence=0.
-        ax_wind=0.
-        az_wind=0.
+        az_turbulence = 0.
+        ax_wind = 0.
+        az_wind = 0.
 
         if X_turb_1 < X < X_turb_2:
             az_turbulence = c_turb * (1.0 - 2.0 * np.random.rand())
             ax_wind = 0.0
-            az_wind = 0.0; #15.5 + 3.0 * (1.0 - 2.0 * rand()) ????
+            az_wind = 0.0  # 15.5 + 3.0 * (1.0 - 2.0 * rand()) ????
+
+        print(x, "dotad dziala")
 
         x = fd_rk45(RHS, x, t, dt, u_control)
-
 
         i += 1
         t += dt

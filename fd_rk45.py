@@ -1,12 +1,13 @@
-#
 def fd_rk45(RHS, x, t, dt, u_control: object) -> object:
 #
+  print(x, 1)
   y0 = RHS( x , t, u_control );
-
+  print(x, 2)
   t1 = t + dt*0.25;
   vec = x + dt*(0.25)*y0;
+  print(x, 2.5)
   y1 = RHS( vec , t1, u_control );
-
+  print(x)
   t2 = t + dt*(3.0/8.0);
   vec = x + dt*( (3.0/32.0)*y0 + (9.0/32.0)*y1 );
   y2 = RHS( vec , t2, u_control );
@@ -24,7 +25,6 @@ def fd_rk45(RHS, x, t, dt, u_control: object) -> object:
   y5 = RHS( vec , t5, u_control );
 
   y = x + dt * ( (16.0/135.0)*y0 + (6656.0/12825.0)*y2 + (28561.0/56430.0)*y3 + (-9.0/50.0)*y4 + (2.0/55.0)*y5 );
-  print(f"y={y}\ntype y={type(y)}")
   return y
 #
 #
