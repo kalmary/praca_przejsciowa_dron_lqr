@@ -4,6 +4,7 @@ from numpy import linalg
 from numpy import arange
 import numpy as np
 from control import lqr
+from matplotlib.pyplot import *
 import matplotlib.pyplot as plt
 
 from fd_rk45 import *
@@ -240,8 +241,9 @@ def main():
 
     t = 0.0
     t_end = 100.0
-    dt = 0.01
-    t_pom = int((t_end + dt) / dt)
+    dt = 0.1
+
+
 
     # -------------------PLOT----------------------
     plt.figure(figsize=(15, 7))
@@ -250,14 +252,14 @@ def main():
     plt.axis([0., 10., 0, 8])
 
     # lines
-    line0 = ax.plot([], [], 'r')
-    line1 = ax.plot([], [], 'b')
-    line2 = ax.plot([], [], 'g')
+    line0, = ax.plot([], [], 'r')
+    line1, = ax.plot([], [], 'b')
+    line2, = ax.plot([], [], 'g')
 
     # points
-    pnt0 = ax.plot([], [], 'or')
-    pnt1 = ax.plot([], [], 'ob')
-    pnt2 = ax.plot([], [], 'og')
+    pnt0, = ax.plot([], [], 'or')
+    pnt1, = ax.plot([], [], 'ob')
+    #pnt2, = ax.plot([], [], 'og')
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels)
@@ -284,12 +286,14 @@ def main():
 
     # with np.printoptions(threshold=np.inf):
     #    print(yp)
+
     i = 0
     while t < t_end + dt:
         X = x[3]
 
         Z0 = 5.
-        z_terr, alpha = trajectory(X, Vel, dt)
+        z_terr, alpha = trajectory(x[3], Vel, dt)
+
         Vx = Vel * np.cos(alpha)
         Vz = Vel * np.sin(alpha)
 
@@ -307,31 +311,16 @@ def main():
         yp6.append(x[6])
         yp7.append(x[7])
 
-        # up[:, i] = np.transpose(u_control)
         up0.append(u_control[0])
         up1.append(u_control[1])
 
         gp.append(z_terr)
         zp.append(z_ref)
 
-        # -------------------PLOT----------------------
-        #
-        text = 't={:8.4f}   V = {:9f}   Vx = {:9f}    Vz = {:9f}    teta = {:9f}    alpha = {:9f}   ' \
-               '|||     u1 = {:9f}    u2 = {:9f}    ' \
-               '|||     e_v={:9f}   e(z) = {:9f}.'.format(t, V, v_x, v_z, theta, alpha * rad2deg, T1, T2, e_v, e[4])
-        #
-        line0.set_data(tp, yp[3, :])
-        line1.set_data(tp, gp[3, :])
-        line2.set_data(tp, up[3, :])
-
-        pnt0.set_data(t, );
-        pnt1.set_data(t, )
-        pnt.set_data(t, )
-        # -------------------PLOT----------------------
-
         x_ref = X
 
         Q, R = getQR(n, m)
+        A, B = Jacob_AB(RHS, x, t, u_control, n, m)
 
         # get e
         e = np.zeros((n, 1))
@@ -343,12 +332,10 @@ def main():
         e[4] = x[4] - (-z_ref)
         e[5] = x[5] - 0.
 
-        A, B = Jacob_AB(RHS, x, t, u_control, n, m)
 
         K_gain, _, _ = lqr2(A, B, Q, R)
 
-        u_control = -K_gain @ e
-        u_control = keep_my_size(u_control)
+        u_control = keep_my_size(-K_gain @ e)
 
         u_max = 10000.
         u_control[0] = np.maximum(-u_max, np.minimum(u_max, u_control[0]))
@@ -363,27 +350,54 @@ def main():
             ax_wind = 0.0
             az_wind = 0.0  # 15.5 + 3.0 * (1.0 - 2.0 * rand()) ????
 
-        i += 1
-        #WYKRES OGARNIJ
-        if i==1 or i % 5 == 0:
+        # -------------------PLOT----------------------
+        v_x = Vx  # sin(x[5]) * x[0] -cos(x[5]) * x[1]
+        v_z = Vz  # sin(x[5]) * x[0] -cos(x[5]) * x[1]
+        V = math.sqrt(x[0] * x[0] + x[1] * x[1])
+        e_v = Vel - V
+        e = e.flatten()
+        theta = x[5] * rad2deg
+        alpha_deg = alpha * rad2deg
 
+        #alt = -x[4]
+        #gamma = math.atan(((math.sin(x[5]) * x[0]) - (math.cos(x[5]) * x[1])) / (
+        #        (math.cos(x[5]) * x[0]) + (math.sin(x[5]) * x[2]))) * rad2deg
+
+        xs, zs = mdl(x[3], -x[4], x[5], 0.5)
+
+        #
+        txt = 't={:8.4f}    V={:9f} [m/s]   v_x={:9f}   v_z={:9f}   theta={:9f}     alpha={:9f}' \
+              '\nu1={:9f}   u2={:9f}' \
+              '\ne_v={:9f} e(z)={:9f}'.format(t, V, v_x, v_z, theta, alpha_deg, u_control[0], u_control[1], e_v, e[4])
+        #
+        line0.set_data(yp3, zp)
+        line1.set_data(yp3, gp)
+
+        print(f"\nx[3]={x[3]}")
+        print(f"i={i}")
+        print(f"t={t}")
+        print(f"yp3 shape={len(yp3)}")
+        print(f"gp shape={len(gp)}")
+        if len(gp)!=len(yp3):
+            print(f"blad w i={i+1} iteracji")
+        pnt0.set_data(yp3[i], zp[i])
+        pnt1.set_data(yp3[i], gp[i])
+
+        # -------------------PLOT----------------------
+
+        i += 1
+        if i % 20 == 0:
             ax.relim()
             ax.autoscale_view(False, True, False)
             ax.grid(True)
-            legend([line0, line1, line2], [])
-            #v_x = Vx  # sin(x[5]) * x[0] -cos(x[5]) * x[1]
-            #v_z = Vz  # sin(x[5]) * x[0] -cos(x[5]) * x[1]
-            #V = math.sqrt(x[0] * x[0] + x[1] * x[1])
-            #e_v = Vel - V
-            #theta = x[5] * rad2deg
-            #alt = -x[4]
-            #T1 = u_control[0]
-            #T2 = u_control[1]
-            #gamma = math.atan(((math.sin(x[5]) * x[0]) - (math.cos(x[5]) * x[1])) / (
-            #            (math.cos(x[5]) * x[0]) + (math.sin(x[5]) * x[2]))) * rad2deg
-
-            #xs, zs = mdl(x[3], -x[4], x[5], 0.5)
-
+            plt.legend([line0, line1, line2], ["yp(t)", "position(t)", "gp(t)"], loc=2)
+            plt.subplots_adjust(left=0.07, right=0.95, bottom=0.1, top=0.85)
+            plt.xlabel('t [s]', size=15)
+            plt.ylabel('x(t) , v(t) , u(x)', size=15)
+            plt.axis([tp[0] - 0.5, t + 0.5, 0, 8])
+            plt.title("Calkowanie ruchu drona\n\n" + txt)
+            plt.draw()
+            plt.pause(0.001)
         if t > 5.0:
             tp.pop(0)
 
@@ -401,5 +415,6 @@ def main():
 
         x = fd_rk45(RHS, x, t, dt, u_control)
         t += dt
+
 if __name__ == '__main__':
     main()
