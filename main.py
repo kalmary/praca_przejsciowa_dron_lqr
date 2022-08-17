@@ -11,9 +11,7 @@ from fd_rk45 import *
 from lqr2 import *
 
 global K_gain
-az_turbulence = 0.
-ax_wind = 0.
-az_wind = 0.
+
 
 # n = 6  # dimension of x
 n = 8  # width engines
@@ -42,22 +40,22 @@ def declare_vector(n):  # dziala
 #
 # --------------------------------------------------------------
 #
-def Jacob_AB(RHS, y, t, u_control, n, m):  # raczej dziala
+def Jacob_AB(RHS, y, t, u_control, n, m, az_turbulence, ax_wind, az_wind):  # raczej dziala
     A = declare_matrix(n, n)
     B = declare_matrix(n, m)
     dy = 1.0e-6
-    f0 = RHS(y, t, u_control)
+    f0 = RHS(y, t, u_control, az_turbulence, ax_wind, az_wind)
     for i in range(0, n):
         yp = array(y)
         yp[i] += dy
-        f = RHS(yp, t, u_control)
+        f = RHS(yp, t, u_control, az_turbulence, ax_wind, az_wind)
         for j in range(0, n):
             A[j, i] = (f[j] - f0[j]) / dy
 
     for i in range(0, m):
         up = array(u_control)
         up[i] += dy
-        f = RHS(y, t, up)
+        f = RHS(y, t, up, az_turbulence, ax_wind, az_wind)
         for j in range(0, n):
             B[j, i] = (f[j] - f0[j]) / dy
     return A, B
@@ -66,7 +64,7 @@ def Jacob_AB(RHS, y, t, u_control, n, m):  # raczej dziala
 #
 # --------------------------------------------------------------
 #
-def RHS(x, t, u_control):
+def RHS(x, t, u_control, az_turbulence, az_wind, ax_wind):
     n = len(x)
     dx_dt = np.zeros((n, 1))
 
@@ -232,16 +230,20 @@ def main():
     X_turb_1 = 1500.
     X_turb_2 = 2000.
 
+    az_turbulence = 0.
+    ax_wind = 0.
+    az_wind = 0.
+
     x = declare_vector(n)
     x[4] = -z0
 
     u_control = declare_vector(m)
 
-    Vel = 0.1  # /3.6 to kmph
+    Vel = 0.4  # /3.6 to [m/s]
 
     t = 0.0
     t_end = 100.0
-    dt = 0.1
+    dt = 0.005
 
 
 
@@ -257,7 +259,7 @@ def main():
     line2, = ax.plot([], [], 'g')
 
     # points
-    pnt0, = ax.plot([], [], 'or')
+    #pnt0, = ax.plot([], [], 'or')
     pnt1, = ax.plot([], [], 'ob')
     #pnt2, = ax.plot([], [], 'og')
 
@@ -268,14 +270,15 @@ def main():
     tp = []
 
     # yp = np.zeros((len(x), t_pom))
-    yp0 = []
-    yp1 = []
-    yp2 = []
+    #yp0 = []
+    #yp1 = []
+    #yp2 = []
     yp3 = []
     yp4 = []
-    yp5 = []
-    yp6 = []
-    yp7 = []
+    yp4_2 = []
+    #yp5 = []
+    #yp6 = []
+    #yp7 = []
 
     # up = np.zeros((len(u_control), t_pom))
     up0 = []
@@ -302,14 +305,15 @@ def main():
         tp.append(t)
 
         # yp[:, i] = np.transpose(x)
-        yp0.append(x[0])
-        yp1.append(x[1])
-        yp2.append(x[2])
+        #yp0.append(x[0])
+        #yp1.append(x[1])
+        #yp2.append(x[2])
         yp3.append(x[3])
-        yp4.append(x[4])
-        yp5.append(x[5])
-        yp6.append(x[6])
-        yp7.append(x[7])
+        #yp4.append(x[4])
+        yp4_2.append(-x[4])
+        #yp5.append(x[5])
+        #yp6.append(x[6])
+        #yp7.append(x[7])
 
         up0.append(u_control[0])
         up1.append(u_control[1])
@@ -317,10 +321,12 @@ def main():
         gp.append(z_terr)
         zp.append(z_ref)
 
+        #print(f"\nlen yp3={len(yp3)}\nlen yp4_2={len(yp4_2)}")
+
         x_ref = X
 
         Q, R = getQR(n, m)
-        A, B = Jacob_AB(RHS, x, t, u_control, n, m)
+        A, B = Jacob_AB(RHS, x, t, u_control, n, m, az_turbulence, ax_wind, az_wind)
 
         # get e
         e = np.zeros((n, 1))
@@ -341,9 +347,6 @@ def main():
         u_control[0] = np.maximum(-u_max, np.minimum(u_max, u_control[0]))
         u_control[1] = np.maximum(-u_max, np.minimum(u_max, u_control[1]))
 
-        az_turbulence = 0.
-        ax_wind = 0.
-        az_wind = 0.
 
         if X_turb_1 < X < X_turb_2:
             az_turbulence = c_turb * (1.0 - 2.0 * np.random.rand())
@@ -363,58 +366,49 @@ def main():
         #gamma = math.atan(((math.sin(x[5]) * x[0]) - (math.cos(x[5]) * x[1])) / (
         #        (math.cos(x[5]) * x[0]) + (math.sin(x[5]) * x[2]))) * rad2deg
 
-        xs, zs = mdl(x[3], -x[4], x[5], 0.5)
 
         #
         txt = 't={:8.4f}    V={:9f} [m/s]   v_x={:9f}   v_z={:9f}   theta={:9f}     alpha={:9f}' \
               '\nu1={:9f}   u2={:9f}' \
               '\ne_v={:9f} e(z)={:9f}'.format(t, V, v_x, v_z, theta, alpha_deg, u_control[0], u_control[1], e_v, e[4])
         #
-        line0.set_data(yp3, zp)
-        line1.set_data(yp3, gp)
+        line0.set_data(yp3, zp) #over the ground
+        line1.set_data(yp3, yp4_2)
+        line2.set_data(yp3, gp) #ground
 
-        print(f"\nx[3]={x[3]}")
-        print(f"i={i}")
-        print(f"t={t}")
-        print(f"yp3 shape={len(yp3)}")
-        print(f"gp shape={len(gp)}")
-        if len(gp)!=len(yp3):
-            print(f"blad w i={i+1} iteracji")
-        pnt0.set_data(yp3[i], zp[i])
-        pnt1.set_data(yp3[i], gp[i])
+
+        pnt1.set_data(x[3], -x[4])
 
         # -------------------PLOT----------------------
 
-        i += 1
+        i+=1
+
         if i % 20 == 0:
             ax.relim()
             ax.autoscale_view(False, True, False)
             ax.grid(True)
-            plt.legend([line0, line1, line2], ["yp(t)", "position(t)", "gp(t)"], loc=2)
+            plt.legend([line0, line1, line2], ["reference height(t)", "y(t)", "ground height(t)"], loc=2)
             plt.subplots_adjust(left=0.07, right=0.95, bottom=0.1, top=0.85)
-            plt.xlabel('t [s]', size=15)
-            plt.ylabel('x(t) , v(t) , u(x)', size=15)
-            plt.axis([tp[0] - 0.5, t + 0.5, 0, 8])
+            plt.xlabel('position x(t)', size=15)
+            plt.ylabel('height y(t)', size=15)
+            plt.axis([yp3[0] - 0.25, yp3[-1]+0.25, 0, 8])
             plt.title("Calkowanie ruchu drona\n\n" + txt)
             plt.draw()
             plt.pause(0.001)
-        if t > 5.0:
+
+
+        if yp3[-1] > 1.:
             tp.pop(0)
-
-            yp0.pop(0)
-            yp1.pop(0)
-            yp2.pop(0)
             yp3.pop(0)
-            yp4.pop(0)
-            yp5.pop(0)
-            yp6.pop(0)
-            yp7.pop(0)
+            yp4_2.pop(0)
+            zp.pop(0)
+            gp.pop(0)
 
-            up0.pop(0)
-            up1.pop(0)
 
-        x = fd_rk45(RHS, x, t, dt, u_control)
+        x = fd_rk45(RHS, x, t, dt, u_control, az_turbulence, ax_wind, az_wind)
+
         t += dt
+    plt.pause(1.5)
 
 if __name__ == '__main__':
     main()
