@@ -1,9 +1,5 @@
 import math
 from numpy import array
-from numpy import linalg
-from numpy import arange
-import numpy as np
-from control import lqr
 from matplotlib.pyplot import *
 import matplotlib.pyplot as plt
 
@@ -239,11 +235,11 @@ def main():
 
     u_control = declare_vector(m)
 
-    Vel = 0.4  # /3.6 to [m/s]
+    Vel = 0.5  # /3.6 to [m/s]
 
     t = 0.0
     t_end = 100.0
-    dt = 0.005
+    dt = 0.001
 
 
 
@@ -398,7 +394,6 @@ def main():
 
 
         if yp3[-1] > 1.:
-            tp.pop(0)
             yp3.pop(0)
             yp4_2.pop(0)
             zp.pop(0)
