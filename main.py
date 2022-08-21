@@ -8,7 +8,6 @@ from lqr2 import *
 
 global K_gain
 
-
 # n = 6  # dimension of x
 n = 8  # width engines
 m = 2  # dimension of u
@@ -135,14 +134,20 @@ def trajectory(X, Vel, dt):
     # alpha = math.atan2(Z1 - Z, dx)
 
     Z = 1.
-    if X <= 1.:
+    if X <= 0.5:
         Z = 1.
-    elif 1. < X < 1.5:
-        Z = 1. + (X - 1.) * 10.
+    elif 0.5 < X < 1.:
+        Z = 6. * X - 2.
+    elif 1. <= X <= 1.5:
+        Z = 4.
     elif 1.5 <= X <= 2.:
-        Z = 6.
+        Z = 6. * X - 5.
     elif 2. <= X <= 2.5:
-        Z = 6. - (X - 2.) * 10.
+        Z = 2. * X + 3.
+    elif 2.5 <= X <= 3.:
+        Z = -6 * X + 23
+    elif 3. <= X <= 4.:
+        Z = -4. * X + 17.
     else:
         Z = 1.
 
@@ -151,16 +156,22 @@ def trajectory(X, Vel, dt):
     dx = Vel * dt
     X = X + dx
 
-    if X <= 1.:
+    if X <= 0.5:
         Z = 1.
-    elif 1.0 < X < 1.5:
-        Z = 1. + (X - 1.) * 10.
+    elif 0.5 < X < 1.:
+        Z = 6. * X - 2.
+    elif 1. <= X <= 1.5:
+        Z = 4.
     elif 1.5 <= X <= 2.:
-        Z = 6.
+        Z = 6. * X - 5.
     elif 2. <= X <= 2.5:
-        Z = 6. - (X - 2.) * 10.
+        Z = 2. * X + 3.
+    elif 2.5 <= X <= 3.:
+        Z = -6 * X + 23
+    elif 3. <= X <= 4.:
+        Z = -4. * X + 17.
     else:
-        Z = 1.0
+        Z = 1.
 
     alpha = math.atan2(Z - Z1, dx)
 
@@ -174,8 +185,8 @@ def getQR(n, m):
     Q = np.diag(np.diag(np.ones((n, n))))
     R = np.diag(np.diag(np.ones((m, m))))
 
-    Q[0, 0] = 1000.
-    Q[1, 1] = 1000.
+    Q[0, 0] = 100.
+    Q[1, 1] = 100.
     Q[2, 2] = 0.1
     Q[3, 3] = 10.
     Q[4, 4] = 100.
@@ -200,23 +211,6 @@ def keep_my_size(vector):
 
 
 #
-# ----------------------------------------------------------
-#
-def mdl(X, Y, theta, c):
-    xs0 = np.array([-0.1, 0.1, 0.1, -0.1, -0.1]) * c
-    ys0 = np.array([-0.1, 0.1, 0.1, -0.1, -0.1]) * c
-
-    xs = declare_vector(5)
-    ys = declare_vector(5)
-
-    for i in range(0, 5):
-        xs[i] = X + xs0[i] * math.cos(theta) - ys0[i] * math.sin(theta)
-        ys[i] = Y + xs0[i] * math.sin(theta) - ys0[i] * math.cos(theta)
-
-    return xs, ys
-
-
-#
 # --------------------------------------------------------------
 #
 def main():
@@ -235,19 +229,17 @@ def main():
 
     u_control = declare_vector(m)
 
-    Vel = 0.5  # /3.6 to [m/s]
+    Vel = 0.3  # /3.6 to [m/s]
 
     t = 0.0
-    t_end = 100.0
+    t_end = 150.0
     dt = 0.001
-
-
 
     # -------------------PLOT----------------------
     plt.figure(figsize=(15, 7))
     plt.ion()
     ax = plt.gca()
-    plt.axis([0., 10., 0, 8])
+    plt.axis([0., 10., 0, 12.])
 
     # lines
     line0, = ax.plot([], [], 'r')
@@ -255,9 +247,9 @@ def main():
     line2, = ax.plot([], [], 'g')
 
     # points
-    #pnt0, = ax.plot([], [], 'or')
+    # pnt0, = ax.plot([], [], 'or')
     pnt1, = ax.plot([], [], 'ob')
-    #pnt2, = ax.plot([], [], 'og')
+    # pnt2, = ax.plot([], [], 'og')
 
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels)
@@ -266,15 +258,15 @@ def main():
     tp = []
 
     # yp = np.zeros((len(x), t_pom))
-    #yp0 = []
-    #yp1 = []
-    #yp2 = []
+    # yp0 = []
+    # yp1 = []
+    # yp2 = []
     yp3 = []
     yp4 = []
     yp4_2 = []
-    #yp5 = []
-    #yp6 = []
-    #yp7 = []
+    # yp5 = []
+    # yp6 = []
+    # yp7 = []
 
     # up = np.zeros((len(u_control), t_pom))
     up0 = []
@@ -301,15 +293,15 @@ def main():
         tp.append(t)
 
         # yp[:, i] = np.transpose(x)
-        #yp0.append(x[0])
-        #yp1.append(x[1])
-        #yp2.append(x[2])
+        # yp0.append(x[0])
+        # yp1.append(x[1])
+        # yp2.append(x[2])
         yp3.append(x[3])
-        #yp4.append(x[4])
+        # yp4.append(x[4])
         yp4_2.append(-x[4])
-        #yp5.append(x[5])
-        #yp6.append(x[6])
-        #yp7.append(x[7])
+        # yp5.append(x[5])
+        # yp6.append(x[6])
+        # yp7.append(x[7])
 
         up0.append(u_control[0])
         up1.append(u_control[1])
@@ -317,7 +309,7 @@ def main():
         gp.append(z_terr)
         zp.append(z_ref)
 
-        #print(f"\nlen yp3={len(yp3)}\nlen yp4_2={len(yp4_2)}")
+        # print(f"\nlen yp3={len(yp3)}\nlen yp4_2={len(yp4_2)}")
 
         x_ref = X
 
@@ -334,7 +326,6 @@ def main():
         e[4] = x[4] - (-z_ref)
         e[5] = x[5] - 0.
 
-
         K_gain, _, _ = lqr2(A, B, Q, R)
 
         u_control = keep_my_size(-K_gain @ e)
@@ -342,7 +333,6 @@ def main():
         u_max = 10000.
         u_control[0] = np.maximum(-u_max, np.minimum(u_max, u_control[0]))
         u_control[1] = np.maximum(-u_max, np.minimum(u_max, u_control[1]))
-
 
         if X_turb_1 < X < X_turb_2:
             az_turbulence = c_turb * (1.0 - 2.0 * np.random.rand())
@@ -358,26 +348,24 @@ def main():
         theta = x[5] * rad2deg
         alpha_deg = alpha * rad2deg
 
-        #alt = -x[4]
-        #gamma = math.atan(((math.sin(x[5]) * x[0]) - (math.cos(x[5]) * x[1])) / (
+        # alt = -x[4]
+        # gamma = math.atan(((math.sin(x[5]) * x[0]) - (math.cos(x[5]) * x[1])) / (
         #        (math.cos(x[5]) * x[0]) + (math.sin(x[5]) * x[2]))) * rad2deg
-
 
         #
         txt = 't={:8.4f}    V={:9f} [m/s]   v_x={:9f}   v_z={:9f}   theta={:9f}     alpha={:9f}' \
               '\nu1={:9f}   u2={:9f}' \
               '\ne_v={:9f} e(z)={:9f}'.format(t, V, v_x, v_z, theta, alpha_deg, u_control[0], u_control[1], e_v, e[4])
         #
-        line0.set_data(yp3, zp) #over the ground
+        line0.set_data(yp3, zp)  # over the ground
         line1.set_data(yp3, yp4_2)
-        line2.set_data(yp3, gp) #ground
-
+        line2.set_data(yp3, gp)  # ground
 
         pnt1.set_data(x[3], -x[4])
 
         # -------------------PLOT----------------------
 
-        i+=1
+        i += 1
 
         if i % 20 == 0:
             ax.relim()
@@ -387,11 +375,10 @@ def main():
             plt.subplots_adjust(left=0.07, right=0.95, bottom=0.1, top=0.85)
             plt.xlabel('position x(t)', size=15)
             plt.ylabel('height y(t)', size=15)
-            plt.axis([yp3[0] - 0.25, yp3[-1]+0.25, 0, 8])
+            plt.axis([yp3[0] - 0.25, yp3[-1] + 0.25, 0, 12])
             plt.title("Calkowanie ruchu drona\n\n" + txt)
             plt.draw()
             plt.pause(0.001)
-
 
         if yp3[-1] > 1.:
             yp3.pop(0)
@@ -399,11 +386,11 @@ def main():
             zp.pop(0)
             gp.pop(0)
 
-
         x = fd_rk45(RHS, x, t, dt, u_control, az_turbulence, ax_wind, az_wind)
 
         t += dt
-    plt.pause(1.5)
+    plt.pause(5.0)
+
 
 if __name__ == '__main__':
     main()
